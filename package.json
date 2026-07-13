@@ -1,0 +1,19 @@
+{
+  "name": "dev-buddy",
+  "version": "1.0.0",
+  "description": "Multi-agent code review tool — Google ADK + Gemini demo",
+  "main": "agent.ts",
+  "scripts": {
+    "dev": "npx adk web",
+    "run-cli": "npx adk run agent.ts"
+  },
+  "dependencies": {
+    "@google/adk": "latest"
+  },
+  "devDependencies": {
+    "@google/adk-devtools": "latest",
+    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0"
+  },
+  "type": "module"
+}
