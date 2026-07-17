@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Error Oracle — AI-Powered Stack Trace Diagnosis</title>
+  <style>
+    /* ── Reset & base ─────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blue:   #1A73E8;
+      --green:  #34A853;
+      --yellow: #FBBC04;
+      --red:    #EA4335;
+      --glass-bg:     rgba(255,255,255,0.06);
+      --glass-border: rgba(255,255,255,0.12);
+      --glass-blur:   blur(18px);
+      --text:   #E8EAED;
+      --muted:  #9AA0A6;
+      --card-radius: 16px;
+    }
+
+    body {
+      min-height: 100vh;
+      background: #060d1a;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    /* ── Animated mesh gradient background ───────────── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 10% 10%,  rgba(26,115,232,0.18) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 50% at 90% 80%,  rgba(52,168,83,0.14)  0%, transparent 55%),
+        radial-gradient(ellipse 50% 40% at 50% 50%,  rgba(251,188,4,0.07)  0%, transparent 50%),
+        radial-gradient(ellipse 70% 60% at 80% 10%,  rgba(234,67,53,0.10)  0%, transparent 55%);
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .page { position: relative; z-index: 1; max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+
+    /* ── Header ───────────────────────────────────────── */
+    header { text-align: center; margin-bottom: 2.5rem; }
+
+    .google-dots { display: flex; justify-content: center; gap: 8px; margin-bottom: 1.2rem; }
+    .dot { width: 12px; height: 12px; border-radius: 50%; }
+
+    header h1 {
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #fff 40%, #A8C7FA 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 0.5rem;
+    }
+
+    header p {
+      color: var(--muted);
+      font-size: 1rem;
+      max-width: 480px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    .badge {
+      display: inline-block;
+      margin-top: 0.8rem;
+      padding: 4px 14px;
+      border-radius: 20px;
+      border: 1px solid rgba(26,115,232,0.4);
+      background: rgba(26,115,232,0.1);
+      color: #A8C7FA;
+      font-size: 0.75rem;
+      letter-spacing: 1px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    /* ── Glass card mixin ─────────────────────────────── */
+    .glass {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
+      border-radius: var(--card-radius);
+    }
+
+    /* ── Input section ────────────────────────────────── */
+    .input-card { padding: 1.5rem; margin-bottom: 1.5rem; }
+
+    .input-label {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 0.82rem; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 1px;
+      margin-bottom: 0.75rem;
+    }
+    .input-label span { width: 8px; height: 8px; border-radius: 50%; background: var(--blue); }
+
+    textarea {
+      width: 100%;
+      min-height: 130px;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
+      color: #A8C7FA;
+      font-family: 'Courier New', monospace;
+      font-size: 0.82rem;
+      line-height: 1.7;
+      padding: 1rem;
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    textarea:focus { border-color: rgba(26,115,232,0.5); }
+    textarea::placeholder { color: rgba(255,255,255,0.2); }
+
+    .input-footer {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-top: 1rem; flex-wrap: wrap; gap: 0.75rem;
+    }
+
+    .quick-errors { display: flex; gap: 8px; flex-wrap: wrap; }
+    .quick-btn {
+      padding: 5px 12px;
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.05);
+      color: var(--muted);
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .quick-btn:hover { border-color: var(--blue); color: #A8C7FA; background: rgba(26,115,232,0.1); }
+
+    .analyse-btn {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 24px;
+      border-radius: 10px;
+      border: none;
+      background: linear-gradient(135deg, var(--blue), #0d5bb5);
+      color: #fff;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 4px 20px rgba(26,115,232,0.3);
+    }
+    .analyse-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(26,115,232,0.4); }
+    .analyse-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    /* ── Pipeline header ──────────────────────────────── */
+    .pipeline-label {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 1rem; color: var(--muted); font-size: 0.82rem;
+      text-transform: uppercase; letter-spacing: 1px; font-weight: 600;
+    }
+    .pipeline-label::before, .pipeline-label::after {
+      content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.07);
+    }
+
+    /* ── Agent cards ──────────────────────────────────── */
+    .agents { display: flex; flex-direction: column; gap: 1rem; }
+
+    .agent-card { padding: 0; overflow: hidden; transition: box-shadow 0.3s; }
+    .agent-card.active { box-shadow: 0 0 0 1px var(--accent-color), 0 8px 32px rgba(0,0,0,0.3); }
+
+    .agent-header {
+      display: flex; align-items: center; gap: 12px;
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .agent-num {
+      width: 28px; height: 28px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; font-weight: 700; flex-shrink: 0;
+    }
+
+    .agent-meta { flex: 1; }
+    .agent-name { font-weight: 600; font-size: 0.95rem; }
+    .agent-role { font-size: 0.75rem; color: var(--muted); margin-top: 1px; }
+
+    .agent-status {
+      font-size: 0.72rem; font-weight: 600; padding: 3px 10px;
+      border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px;
+      border: 1px solid; transition: all 0.3s;
+    }
+    .status-idle    { color: var(--muted); border-color: rgba(255,255,255,0.1); background: transparent; }
+    .status-running { color: var(--yellow); border-color: rgba(251,188,4,0.3); background: rgba(251,188,4,0.08); animation: pulse 1.5s infinite; }
+    .status-done    { color: var(--green);  border-color: rgba(52,168,83,0.3);  background: rgba(52,168,83,0.08); }
+    .status-error   { color: var(--red);    border-color: rgba(234,67,53,0.3);  background: rgba(234,67,53,0.08); }
+
+    @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:0.5 } }
+
+    .agent-body {
+      padding: 1.25rem;
+      min-height: 60px;
+      font-size: 0.875rem;
+      line-height: 1.8;
+      color: var(--text);
+    }
+
+    .agent-body.empty { color: var(--muted); font-style: italic; }
+
+    /* Markdown-ish styling inside agent body */
+    .agent-body h2 { font-size: 1rem; margin: 0.8rem 0 0.4rem; color: #fff; }
+    .agent-body h3 { font-size: 0.9rem; margin: 0.6rem 0 0.3rem; color: #A8C7FA; }
+    .agent-body strong { color: #fff; }
+    .agent-body code {
+      background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 4px; padding: 1px 6px; font-family: 'Courier New', monospace;
+      font-size: 0.8em; color: #A8C7FA;
+    }
+    .agent-body pre {
+      background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px; padding: 1rem; margin: 0.75rem 0;
+      overflow-x: auto; font-family: 'Courier New', monospace;
+      font-size: 0.8rem; line-height: 1.6; color: #A8C7FA;
+    }
+    .agent-body ul, .agent-body ol { padding-left: 1.4rem; margin: 0.4rem 0; }
+    .agent-body li { margin: 0.25rem 0; }
+    .agent-body a { color: var(--blue); text-decoration: none; }
+    .agent-body a:hover { text-decoration: underline; }
+    .agent-body hr { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 0.75rem 0; }
+
+    /* Typing cursor */
+    .cursor::after { content: '▋'; animation: blink 0.8s infinite; color: var(--blue); }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+    /* ── Footer ───────────────────────────────────────── */
+    footer {
+      text-align: center; margin-top: 3rem;
+      color: rgba(255,255,255,0.2); font-size: 0.75rem;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    footer .dot { width: 6px; height: 6px; }
+
+    /* ── Reset button ─────────────────────────────────── */
+    .reset-btn {
+      margin-top: 1.5rem; display: block; width: 100%;
+      padding: 10px; border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: transparent; color: var(--muted);
+      font-size: 0.85rem; cursor: pointer; transition: all 0.2s;
+    }
+    .reset-btn:hover { border-color: rgba(255,255,255,0.2); color: var(--text); }
+    .reset-btn { display: none; }
+    .reset-btn.visible { display: block; }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <header>
+    <div class="google-dots">
+      <div class="dot" style="background:#1A73E8"></div>
+      <div class="dot" style="background:#EA4335"></div>
+      <div class="dot" style="background:#FBBC04"></div>
+      <div class="dot" style="background:#34A853"></div>
+    </div>
+    <h1>Error Oracle</h1>
+    <p>Paste any stack trace. Three AI agents diagnose it, research fixes, and give you a resolution guide.</p>
+    <span class="badge">Powered by Google ADK &nbsp;·&nbsp; Gemini</span>
+  </header>
+
+  <!-- Input card -->
+  <div class="glass input-card">
+    <div class="input-label"><span></span>Stack trace or error message</div>
+    <textarea id="errorInput" placeholder="Paste your error or stack trace here...
+e.g. TypeError: Cannot read properties of undefined (reading 'map')
+    at UserList (/app/components/UserList.jsx:12:23)"></textarea>
+
+    <div class="input-footer">
+      <div class="quick-errors">
+        <span style="font-size:0.75rem;color:var(--muted);align-self:center;">Try:</span>
+        <button class="quick-btn" data-error="jwt">JWT Error</button>
+        <button class="quick-btn" data-error="typeError">TypeError</button>
+        <button class="quick-btn" data-error="db">DB Connection</button>
+      </div>
+      <button class="analyse-btn" id="analyseBtn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        Analyse Error
+      </button>
+    </div>
+  </div>
+
+  <!-- Agent pipeline -->
+  <div class="pipeline-label">3-Agent Pipeline</div>
+
+  <div class="agents">
+
+    <!-- Agent 1 -->
+    <div class="glass agent-card" id="card-1" style="--accent-color: #1A73E8">
+      <div class="agent-header">
+        <div class="agent-num" style="background:rgba(26,115,232,0.2);color:#1A73E8">1</div>
+        <div class="agent-meta">
+          <div class="agent-name">🔍 Error Interpreter</div>
+          <div class="agent-role">Identifies error type, runtime & root cause in plain English</div>
+        </div>
+        <div class="agent-status status-idle" id="status-1">Idle</div>
+      </div>
+      <div class="agent-body empty" id="body-1">Waiting for error input...</div>
+    </div>
+
+    <!-- Agent 2 -->
+    <div class="glass agent-card" id="card-2" style="--accent-color: #34A853">
+      <div class="agent-header">
+        <div class="agent-num" style="background:rgba(52,168,83,0.2);color:#34A853">2</div>
+        <div class="agent-meta">
+          <div class="agent-name">🌐 Fix Researcher</div>
+          <div class="agent-role">Live Google Search — Stack Overflow, GitHub issues, official docs</div>
+        </div>
+        <div class="agent-status status-idle" id="status-2">Idle</div>
+      </div>
+      <div class="agent-body empty" id="body-2">Waiting for Agent 1 to finish...</div>
+    </div>
+
+    <!-- Agent 3 -->
+    <div class="glass agent-card" id="card-3" style="--accent-color: #FBBC04">
+      <div class="agent-header">
+        <div class="agent-num" style="background:rgba(251,188,4,0.2);color:#FBBC04">3</div>
+        <div class="agent-meta">
+          <div class="agent-name">✅ Resolution Guide</div>
+          <div class="agent-role">Step-by-step fix with code snippet & prevention advice</div>
+        </div>
+        <div class="agent-status status-idle" id="status-3">Idle</div>
+      </div>
+      <div class="agent-body empty" id="body-3">Waiting for Agent 2 to finish...</div>
+    </div>
+
+  </div>
+
+  <button class="reset-btn" id="resetBtn">↺ &nbsp; Run another error</button>
+
+</div>
+
+<!-- Footer -->
+<footer>
+  <div class="dot" style="background:#1A73E8"></div>
+  Built with Google ADK
+  <div class="dot" style="background:#EA4335"></div>
+  Gemini 3.1 Flash Lite
+  <div class="dot" style="background:#FBBC04"></div>
+  Google Search Tool
+  <div class="dot" style="background:#34A853"></div>
+</footer>
+
+<script>
+  // ── Quick error presets ──────────────────────────────
+  const PRESETS = {
+    jwt: `JsonWebTokenError: invalid signature\n    at /app/node_modules/jsonwebtoken/verify.js:89:21\n    at /app/middleware/auth.js:34:5\n    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)\n    at next (/app/node_modules/express/lib/router/route.js:144:13)`,
+    typeError: `TypeError: Cannot read properties of undefined (reading 'map')\n    at UserList (/app/components/UserList.jsx:12:23)\n    at renderWithHooks (/app/node_modules/react-dom/cjs/react-dom.development.js:14985:18)\n    at mountIndeterminateComponent (/app/node_modules/react-dom/cjs/react-dom.development.js:17811:13)`,
+    db: `Error: connect ECONNREFUSED 127.0.0.1:5432\n    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1187:16) {\n  errno: -61, code: 'ECONNREFUSED', syscall: 'connect',\n  address: '127.0.0.1', port: 5432\n}`,
+  };
+
+  document.querySelectorAll('.quick-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.getElementById('errorInput').value = PRESETS[btn.dataset.error];
+    });
+  });
+
+  // ── ADK API config ───────────────────────────────────
+  const ADK_BASE = 'http://localhost:8000';
+  const APP      = 'agent';
+  const USER_ID  = 'user';
+
+  // ── Markdown renderer (lightweight) ─────────────────
+  function renderMarkdown(text) {
+    return text
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      // code blocks
+      .replace(/```[\w]*\n?([\s\S]*?)```/g, '<pre>$1</pre>')
+      // inline code
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      // bold
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      // headers
+      .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+      .replace(/^## (.+)$/gm,  '<h2>$1</h2>')
+      // hr
+      .replace(/^---$/gm, '<hr>')
+      // bullet lists
+      .replace(/^\* (.+)$/gm,  '<li>$1</li>')
+      .replace(/^- (.+)$/gm,   '<li>$1</li>')
+      // numbered lists
+      .replace(/^\d+\. (.+)$/gm, '<li>$1</li>')
+      // links
+      .replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g, '<a href="$2" target="_blank">$1</a>')
+      // line breaks
+      .replace(/\n/g, '<br>');
+  }
+
+  // ── UI helpers ───────────────────────────────────────
+  function setStatus(n, state) {
+    const el = document.getElementById(`status-${n}`);
+    el.className = `agent-status status-${state}`;
+    el.textContent = state === 'running' ? 'Running...' : state === 'done' ? 'Done ✓' : state === 'error' ? 'Error' : 'Idle';
+    document.getElementById(`card-${n}`).classList.toggle('active', state === 'running');
+  }
+
+  function setBody(n, html, isEmpty = false) {
+    const el = document.getElementById(`body-${n}`);
+    el.className = isEmpty ? 'agent-body empty' : 'agent-body';
+    el.innerHTML = html;
+  }
+
+  function reset() {
+    [1,2,3].forEach(n => {
+      setStatus(n, 'idle');
+      setBody(n, n === 1 ? 'Waiting for error input...' : n === 2 ? 'Waiting for Agent 1 to finish...' : 'Waiting for Agent 2 to finish...', true);
+    });
+    document.getElementById('analyseBtn').disabled = false;
+    document.getElementById('resetBtn').classList.remove('visible');
+  }
+
+  // ── Main: call ADK and parse SSE stream ──────────────
+  document.getElementById('analyseBtn').addEventListener('click', async () => {
+    const error = document.getElementById('errorInput').value.trim();
+    if (!error) return;
+
+    document.getElementById('analyseBtn').disabled = true;
+    document.getElementById('resetBtn').classList.remove('visible');
+    reset();
+    await runOracle(error);
+    document.getElementById('resetBtn').classList.add('visible');
+  });
+
+  document.getElementById('resetBtn').addEventListener('click', () => {
+    reset();
+    document.getElementById('errorInput').value = '';
+  });
+
+  async function runOracle(errorText) {
+    // 1. Create a new session with a known ID we generate ourselves
+    const sessionId = crypto.randomUUID();
+    try {
+      const r = await fetch(`${ADK_BASE}/apps/${APP}/users/${USER_ID}/sessions/${sessionId}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}'
+      });
+      if (!r.ok) throw new Error(`Session create failed: ${r.status}`);
+    } catch(e) {
+      setBody(1, '❌ Cannot reach ADK server at localhost:8000. Make sure <code>npx adk web</code> is running.', false);
+      setStatus(1, 'error');
+      document.getElementById('analyseBtn').disabled = false;
+      return;
+    }
+
+    // 2. Send message via SSE
+    setStatus(1, 'running');
+    setBody(1, '<span class="cursor"></span>', false);
+
+    let currentAgent = 1;
+    const agentBuffers = { 1: '', 2: '', 3: '' };
+
+    // Map author names to agent numbers
+    const authorMap = {
+      'error_interpreter': 1,
+      'fix_researcher':    2,
+      'resolution_guide':  3,
+    };
+
+    try {
+      const response = await fetch(`${ADK_BASE}/run_sse`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          appName:    APP,
+          userId:     USER_ID,
+          sessionId:  sessionId,
+          newMessage: { role: 'user', parts: [{ text: errorText }] },
+          streaming:  false,
+        }),
+      });
+
+      const reader   = response.body.getReader();
+      const decoder  = new TextDecoder();
+      let   buffer   = '';
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        // SSE events are separated by double newlines
+        const parts = buffer.split('\n\n');
+        buffer = parts.pop(); // keep incomplete last chunk
+
+        for (const part of parts) {
+          const line = part.trim();
+          if (!line.startsWith('data:')) continue;
+          let json;
+          try { json = JSON.parse(line.slice(5).trim()); } catch { continue; }
+
+          const author  = json.author || '';
+          const content = json.content;
+          if (!content || !content.parts) continue;
+
+          // Determine which agent number this is
+          const agentNum = authorMap[author];
+          if (!agentNum) continue;
+
+          // If we've moved to a new agent, mark previous as done
+          if (agentNum !== currentAgent) {
+            setStatus(currentAgent, 'done');
+            setBody(currentAgent, renderMarkdown(agentBuffers[currentAgent]));
+            currentAgent = agentNum;
+            setStatus(currentAgent, 'running');
+            setBody(currentAgent, '<span class="cursor"></span>', false);
+          }
+
+          // Accumulate text
+          for (const part of content.parts) {
+            if (part.text) agentBuffers[agentNum] += part.text;
+          }
+
+          // Live update current agent body
+          setBody(agentNum, renderMarkdown(agentBuffers[agentNum]) + '<span class="cursor"></span>', false);
+        }
+      }
+
+      // Mark last agent done
+      setStatus(currentAgent, 'done');
+      setBody(currentAgent, renderMarkdown(agentBuffers[currentAgent]));
+
+      // If any agents still idle, mark them done with whatever they have
+      [1,2,3].forEach(n => {
+        const el = document.getElementById(`status-${n}`);
+        if (el.className.includes('idle') || el.className.includes('running')) {
+          if (agentBuffers[n]) {
+            setStatus(n, 'done');
+            setBody(n, renderMarkdown(agentBuffers[n]));
+          } else {
+            setStatus(n, 'error');
+            setBody(n, 'No response received from this agent.', false);
+          }
+        }
+      });
+
+    } catch(e) {
+      setStatus(currentAgent, 'error');
+      setBody(currentAgent, `❌ Stream error: ${e.message}`, false);
+    }
+
+    document.getElementById('analyseBtn').disabled = false;
+  }
+</script>
+</body>
+</html>

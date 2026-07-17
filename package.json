@@ -1,11 +1,12 @@
 {
   "name": "dev-buddy",
   "version": "1.0.0",
-  "description": "Multi-agent code review tool — Google ADK + Gemini demo",
-  "main": "agent.ts",
+  "description": "Error Oracle - multi-agent AI stack trace diagnosis tool built with Google ADK TypeScript + Gemini",
+  "main": "agent.js",
   "scripts": {
-    "dev": "npx adk web",
-    "run-cli": "npx adk run agent.ts"
+    "dev": "npx adk web agent.js --allow_origins=http://localhost:3000 --compile=false --bundle=false",
+    "ui": "node proxy.js",
+    "run-cli": "npx adk run agent.js --compile=false --bundle=false"
   },
   "dependencies": {
     "@google/adk": "latest"

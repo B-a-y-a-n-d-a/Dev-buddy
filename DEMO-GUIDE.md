@@ -4,8 +4,12 @@
 A multi-agent AI tool built with **Google ADK (TypeScript)** that diagnoses any error or stack trace using 3 specialist agents:
 
 1. **Error Interpreter** — parses the trace, identifies root cause in plain English
-2. **Fix Researcher** — uses Google Search to find real solutions
+2. **Fix Researcher** — uses live Google Search to find real solutions online
 3. **Resolution Guide** — synthesises everything into a step-by-step fix with code
+
+Two ways to run it:
+- **index.html** — the custom glassmorphic frontend (recommended for the demo)
+- **localhost:8000** — the built-in ADK dev UI (good for showing ADK internals)
 
 ---
 
@@ -13,7 +17,7 @@ A multi-agent AI tool built with **Google ADK (TypeScript)** that diagnoses any 
 
 ### 1. Get a free API key
 Go to **https://aistudio.google.com/apikey** → click "Create API key" → copy it.
-Free tier is plenty for the demo.
+Free tier is plenty (1,500 requests/day).
 
 ### 2. Install dependencies
 ```bash
@@ -21,50 +25,80 @@ cd dev-buddy
 npm install
 ```
 
-### 3. Set your API key
+### 3. Set your API key (use this exact variable name)
 ```bash
 # Mac/Linux
-export GOOGLE_API_KEY=your_key_here
+export GOOGLE_GENAI_API_KEY=your_key_here
 
 # Windows (Command Prompt)
-set GOOGLE_API_KEY=your_key_here
+set GOOGLE_GENAI_API_KEY=your_key_here
 
 # Windows (PowerShell)
-$env:GOOGLE_API_KEY="your_key_here"
+$env:GOOGLE_GENAI_API_KEY="your_key_here"
 ```
 
-### 4. Start the dev UI
+> ⚠️ The variable MUST be `GOOGLE_GENAI_API_KEY` — not `GOOGLE_API_KEY`. ADK TypeScript will silently fail if you use the wrong name.
+
+### 4. Start the ADK server
 ```bash
 npx adk web
 ```
 
-Opens at **http://localhost:3000** — you should see the Error Oracle agent in the sidebar.
+Opens the ADK dev UI at **http://localhost:8000**
+
+### 5. Open the glassmorphic frontend
+In a **second terminal** (keep `npx adk web` running in the first):
+```bash
+npm run ui
+```
+Then open **http://localhost:3000** in Chrome.
+
+> ⚠️ Don't just double-click index.html — opening it as a file:// URL causes CORS errors when it tries to connect to the ADK server. Always use `npm run ui` to serve it properly.
 
 ---
 
-## On the day: demo script
+## On the day: demo order
 
-### Error to paste (Slide 10 already shows this — just run it live)
+**Step 1 — Show Google Stitch** (STITCH-GUIDE.md has the exact prompt)
+> "Before writing any code I described the UI I wanted in plain English at stitch.withgoogle.com. This is what it generated in 30 seconds."
+
+**Step 2 — Show Google AI Studio**
+> "I took the agent prompts here to test them, tuned them live, and got a free API key in one click."
+
+**Step 3 — Show the ADK dev UI at localhost:8000**
+> "This is the ADK dev UI — zero frontend code, comes with the framework. I'll show you what it looks like before I show you the custom frontend we built."
+
+**Step 4 — Switch to index.html and run the demo live**
+Paste the JWT error below, watch all 3 agents respond in real time.
+
+---
+
+## Errors to paste during the demo
+
+### Primary — JWT error (tested and confirmed working)
+```
+JsonWebTokenError: invalid signature
+    at /app/node_modules/jsonwebtoken/verify.js:89:21
+    at /app/middleware/auth.js:34:5
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at next (/app/node_modules/express/lib/router/route.js:137:13)
+```
+
+**What to say while it runs:**
+> "Watch the three panels. The Interpreter reads the trace and identifies the root cause — without suggesting a fix yet. Then the Researcher goes out to Google Search live to find the real solution. Finally the Resolution Guide pulls it all together into a numbered fix with a code snippet."
+
+### Backup — Database connection refused
+```
+Error: connect ECONNREFUSED 127.0.0.1:5432
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1157:16)
+    at /app/services/db.js:23:10
+```
+
+### Backup — React TypeError
 ```
 TypeError: Cannot read properties of undefined (reading 'map')
     at UserList (/app/components/UserList.jsx:12:23)
     at renderWithHooks (/app/node_modules/react-dom/cjs/react-dom.development.js:14985:18)
-    at mountIndeterminateComponent (/app/node_modules/react-dom/cjs/react-dom.development.js:17811:13)
-    at beginWork (/app/node_modules/react-dom/cjs/react-dom.development.js:19049:16)
-```
-
-**What to say while it runs:**
-> "Watch the sidebar — you can see each agent hand off to the next. The Interpreter reads the trace, the Researcher goes out and searches Google in real-time, and the Resolution Guide pulls it all together."
-
-### Backup errors (in case you want variety)
-```
-Error: connect ECONNREFUSED 127.0.0.1:5432
-    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1157:16)
-```
-```
-java.lang.NullPointerException: Cannot invoke "String.length()" because "str" is null
-    at com.sunbet.UserService.validateInput(UserService.java:47)
-    at com.sunbet.UserService.processUser(UserService.java:23)
 ```
 
 ---
@@ -72,38 +106,43 @@ java.lang.NullPointerException: Cannot invoke "String.length()" because "str" is
 ## Likely questions & how to answer them
 
 **"Is this just ChatGPT with a fancy wrapper?"**
-> No — the key difference is the *multi-agent architecture*. Three separate agents, each with its own system prompt and responsibility. The Fix Researcher actually calls Google Search live to find current solutions, not just its training data. The structure also means you can swap out any agent independently.
+> No — the key difference is the multi-agent architecture. Three separate Gemini calls, each with its own system prompt and responsibility. The Fix Researcher actually searches Google live for current solutions. You can trace exactly what each agent did and swap any one out independently.
 
-**"How much does it cost to run?"**
-> The Gemini API has a generous free tier — around 1,500 requests/day free. For a team tool running a few queries an hour, you're looking at maybe $5–10/month on the paid tier.
+**"What makes SequentialAgent different from one big prompt?"**
+> In one prompt, the model tries to diagnose AND research AND write the fix all at once — it rushes and mixes things up. With SequentialAgent, the Interpreter is forbidden from suggesting fixes. Only the Researcher searches. The Guide only synthesises. Each one does one job well. The output quality is measurably better, and the code is easier to maintain.
+
+**"How much does it cost?"**
+> Free tier: 1,500 requests/day. Paid tier for a team running queries throughout the day would be roughly R90–R180/month. Negligible.
 
 **"Can we connect it to our own codebase?"**
-> Yes — ADK supports MCP (Model Context Protocol) tool integrations. You could connect it to your GitHub repo, your Jira board, or your internal runbooks so the agents have context about *your* specific code.
+> Yes — ADK supports MCP (Model Context Protocol). You could connect agents to your GitHub repo, Jira board, or internal Confluence docs so they have context about your specific code.
 
-**"What's the difference between this and Gemini in AI Studio?"**
-> AI Studio is the playground — great for experimenting with a single prompt. ADK is the framework for building *production-ready* agents with multi-step logic, tool use, and orchestration. Think of AI Studio as the sketchbook, ADK as the actual code.
-
-**"Could a junior dev actually build this?"**
-> The `agent.ts` file is about 80 lines of TypeScript. The hardest part is writing good system prompts, which is more about clear thinking than coding skill. That's the point — the barrier to entry is genuinely low now.
+**"Could a junior dev build this?"**
+> agent.ts is 80 lines of TypeScript. The hardest part is writing good system prompts, which is more about clear thinking than coding skill. That's the point.
 
 **"Is it TypeScript only?"**
-> ADK has Python, TypeScript/JS, and Go versions. Python is the most mature. We used TypeScript here because it fits our stack.
+> ADK has Python, TypeScript/JS, and Go versions. Python is the most mature. We used TypeScript because it fits our stack.
+
+**"The pencil icon in the ADK UI isn't working"**
+> That's expected — ADK has two modes: the visual builder (for drag-and-drop agents), and code-first (what we're doing). The pencil edit is only for the visual builder. Code-first agents are defined in TypeScript, which gives you more control, type safety, and version control.
 
 ---
 
-## Things NOT to say / trip-ups to avoid
+## Things NOT to say
 
-- Don't say the results are always correct — the agents can hallucinate. Say: *"It's a starting point — it gets you 80% of the way there in seconds instead of starting from scratch."*
+- Don't say the results are always correct — say: *"It gets you 80% of the way there in seconds. You still review and apply the fix — it's a fast starting point, not a replacement for judgment."*
 - Don't promise it works offline — it needs the Gemini API.
-- If the demo lags, it's because the Fix Researcher is actually searching Google live — that's a feature, not a bug.
+- If the demo lags on Agent 2 — that's the live Google Search running. Say: *"The Researcher is actually hitting Google right now. That's real-time web grounding, not training data."*
 
 ---
 
-## Files in this folder
+## Files in this project
 
 | File | What it is |
 |------|-----------|
-| `agent.ts` | The full Error Oracle agent — all 3 agents + the pipeline |
-| `package.json` | Dependencies (`@google/adk`) |
-| `.env.example` | Copy to `.env` and add your API key |
+| `agent.ts` | All 3 agents + SequentialAgent pipeline (~80 lines) |
+| `index.html` | Custom glassmorphic frontend — connects to ADK REST API |
+| `package.json` | Dependencies (`@google/adk`, `@google/adk-devtools`) |
+| `.env.example` | Copy to `.env`, add your `GOOGLE_GENAI_API_KEY` |
+| `STITCH-GUIDE.md` | Exact prompt to use in Google Stitch + demo script |
 | `DEMO-GUIDE.md` | This file |

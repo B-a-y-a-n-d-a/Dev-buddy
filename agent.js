@@ -1,23 +1,10 @@
 /**
  * Error Oracle — Multi-Agent Stack Trace Diagnosis Tool
- * Built with Google ADK (TypeScript) + Gemini
- *
- * Three specialized agents work in a pipeline:
- *   1. Error Interpreter   → parses the stack trace & identifies the root cause
- *   2. Fix Researcher      → searches Google for known fixes & relevant resources
- *   3. Resolution Guide    → produces a clear, actionable fix + prevention advice
- *
- * Usage:
- *   npx adk web          → opens browser UI, paste your error and go
- *   npx adk run agent.ts → interactive CLI version
+ * Built with Google ADK + Gemini
  */
 
 import { LlmAgent, SequentialAgent, GOOGLE_SEARCH } from '@google/adk';
 
-// ─────────────────────────────────────────────
-// Agent 1: Error Interpreter
-// Reads the raw error/stack trace and makes sense of it
-// ─────────────────────────────────────────────
 const errorInterpreterAgent = new LlmAgent({
   name: 'error_interpreter',
   description: 'Parses a stack trace or error message and identifies the root cause',
@@ -50,10 +37,6 @@ Format your output as:
 Be precise. Do not suggest fixes yet — that comes next.`,
 });
 
-// ─────────────────────────────────────────────
-// Agent 2: Fix Researcher
-// Uses Google Search to find real solutions
-// ─────────────────────────────────────────────
 const fixResearcherAgent = new LlmAgent({
   name: 'fix_researcher',
   description: 'Searches for known fixes, Stack Overflow answers, and official docs for the error',
@@ -65,9 +48,6 @@ Use Google Search to find:
 1. The most relevant Stack Overflow answers or GitHub issues for this error
 2. The official documentation page that covers this error (if any)
 3. Any known bugs or version-specific gotchas related to this error
-
-Search for the specific error message + framework combination.
-Search for common solutions for this type of error in this runtime.
 
 Format your output as:
 
@@ -84,10 +64,6 @@ Format your output as:
   tools: [GOOGLE_SEARCH],
 });
 
-// ─────────────────────────────────────────────
-// Agent 3: Resolution Guide
-// Synthesises everything into one clear action plan
-// ─────────────────────────────────────────────
 const resolutionGuideAgent = new LlmAgent({
   name: 'resolution_guide',
   description: 'Synthesises all findings into a clear fix plan and prevention advice',
@@ -119,16 +95,11 @@ Format your output as:
 [2–3 bullet points — best practices, tooling, config changes]
 
 ### Confidence Level: [High / Medium / Low]
-[One sentence on certainty — e.g. "This is a well-known Node.js issue with a definitive fix."]`,
+[One sentence on certainty]`,
 });
 
-// ─────────────────────────────────────────────
-// Root Agent: Sequential Pipeline
-// Interpreter → Researcher → Resolution Guide
-// ─────────────────────────────────────────────
 export const rootAgent = new SequentialAgent({
   name: 'error_oracle',
-  description:
-    'Error Oracle: Paste any error, stack trace, or log. Three AI agents will diagnose it, research fixes, and give you a clear resolution guide.',
+  description: 'Error Oracle: Paste any error, stack trace, or log. Three AI agents will diagnose it, research fixes, and give you a clear resolution guide.',
   subAgents: [errorInterpreterAgent, fixResearcherAgent, resolutionGuideAgent],
 });
