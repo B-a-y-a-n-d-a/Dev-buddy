@@ -359,7 +359,7 @@ e.g. TypeError: Cannot read properties of undefined (reading 'map')
   const PRESETS = {
     jwt: `JsonWebTokenError: invalid signature\n    at /app/node_modules/jsonwebtoken/verify.js:89:21\n    at /app/middleware/auth.js:34:5\n    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)\n    at next (/app/node_modules/express/lib/router/route.js:144:13)`,
     typeError: `TypeError: Cannot read properties of undefined (reading 'map')\n    at UserList (/app/components/UserList.jsx:12:23)\n    at renderWithHooks (/app/node_modules/react-dom/cjs/react-dom.development.js:14985:18)\n    at mountIndeterminateComponent (/app/node_modules/react-dom/cjs/react-dom.development.js:17811:13)`,
-    db: `Error: connect ECONNREFUSED 127.0.0.1:5432\n    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1187:16) {\n  errno: -61, code: 'ECONNREFUSED', syscall: 'connect',\n  address: '127.0.0.1', port: 5432\n}`,
+    db: `Error: connect ECONNREFUSED 127.0.0..1:5432\n    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1187:16) {\n  errno: -61, code: 'ECONNREFUSED', syscall: 'connect',\n  address: '127.0.0.1', port: 5432\n}`,
   };
 
   document.querySelectorAll('.quick-btn').forEach(btn => {
@@ -369,7 +369,8 @@ e.g. TypeError: Cannot read properties of undefined (reading 'map')
   });
 
   // ── ADK API config ───────────────────────────────────
-  const ADK_BASE = 'http://localhost:8000';
+  // Empty string = same origin (works both locally via proxy and on Cloud Run)
+  const ADK_BASE = '';
   const APP      = 'agent';
   const USER_ID  = 'user';
 

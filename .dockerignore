@@ -1,0 +1,10 @@
+node_modules
+.env
+*.bak
+*.pptx
+agent.ts.bak
+test-agent.ts
+DEPLOY-GUIDE.md
+DEMO-GUIDE.md
+STITCH-GUIDE.md
+Readme.md

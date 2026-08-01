@@ -12,7 +12,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ADK_PORT  = 8000;
-const UI_PORT   = 3000;
+const UI_PORT   = parseInt(process.env.PORT || '3000', 10);
 
 const CORS = {
   'Access-Control-Allow-Origin':  '*',
@@ -86,7 +86,7 @@ http.createServer((req, res) => {
       proxy.on('error', err => {
         if (!res.headersSent) {
           res.writeHead(502, { 'Content-Type': 'text/plain', ...CORS });
-          res.end('Cannot reach ADK. Is "npx adk web" running in another terminal?');
+          res.end('Cannot reach ADK api_server on port 8000.');
         }
       });
 
@@ -115,7 +115,6 @@ http.createServer((req, res) => {
 
 }).listen(UI_PORT, () => {
   console.log('\n  ✅  Error Oracle proxy is running');
-  console.log(`  🌐  Open in Chrome → http://localhost:${UI_PORT}`);
-  console.log(`  🔁  ADK backend    → http://localhost:${ADK_PORT}`);
-  console.log('\n  Make sure "npx adk web" is also running.\n');
+  console.log(`  🌐  Open → http://localhost:${UI_PORT}`);
+  console.log(`  🔁  ADK  → http://localhost:${ADK_PORT}\n`);
 });
